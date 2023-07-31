@@ -1,36 +1,48 @@
-// gauss contains utilities to execute
+// Package gauss contains utilities to execute
 package gauss
 
 import (
 	"sync"
 )
 
-type Result struct {
-	Err    error
-	Result []interface{}
+type Return interface {
+	Error() error
+	ReturnValues() []interface{}
 }
 
-func (_self *Result) AddResult(result interface{}) {
-	_self.Result = append(_self.Result, result)
+type returnImpl struct {
+	error        error
+	returnValues []interface{}
 }
 
-type Function func(result *Result)
+func (_self *returnImpl) Error() error {
+	return _self.error
+}
+func (_self *returnImpl) ReturnValues() []interface{} {
+	return _self.returnValues
+}
 
-func JoinFailOnAnyError(funcs ...Function) ([]Result, error) {
+func NewReturn(err error, returnValues ...interface{}) Return {
+	return &returnImpl{error: err, returnValues: returnValues}
+}
+
+type Function func() Return
+
+func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	errorChannel := make(chan error)
 	completeChannel := make(chan bool)
 	var wg sync.WaitGroup
-	execResults := make([]Result, len(funcs))
+	returns := make([]Return, len(funcs))
 	for index, function := range funcs {
 		wg.Add(1)
-		execResults[index] = Result{Result: make([]interface{}, 0)}
-		go func(execResult *Result, f Function) {
-			f(execResult)
+		go func(returnValues []Return, index int, function Function) {
+			returnValuesByFunction := function()
 			wg.Done()
-			if execResult.Err != nil {
-				errorChannel <- execResult.Err
+			returnValues[index] = returnValuesByFunction
+			if returnValuesByFunction.Error() != nil {
+				errorChannel <- returnValuesByFunction.Error()
 			}
-		}(&execResults[index], function)
+		}(returns, index, function)
 	}
 
 	go func() {
@@ -40,8 +52,71 @@ func JoinFailOnAnyError(funcs ...Function) ([]Result, error) {
 
 	select {
 	case <-completeChannel:
-		return execResults, nil
+		return returns, nil
 	case err := <-errorChannel:
-		return execResults, err
+		return returns, err
+	}
+}
+
+// JoinCompleteAll Run functions and return when complete all functions, first return value contain
+// return values and second value return true if success operation, false otherwise.
+func JoinCompleteAll(funcs ...Function) ([]Return, bool) {
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	for index, function := range funcs {
+		wg.Add(1)
+		go func(returnValues []Return, index int, function Function) {
+			returnValuesByFunction := function()
+			returnValues[index] = returnValuesByFunction
+			wg.Done()
+		}(returns, index, function)
+	}
+	wg.Wait()
+	isSuccess := true
+	for _, result := range returns {
+		if result.Error() != nil {
+			isSuccess = false
+			break
+		}
+	}
+	return returns, isSuccess
+}
+
+// JoinCompleteOnAnySuccess run function and return when any success, if all function return error
+// then return second value equals to false, true otherwise
+func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
+	finishChannel := make(chan bool)
+	completeChannel := make(chan bool)
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	for index, function := range funcs {
+		wg.Add(1)
+		go func(returnValues []Return, index int, function Function) {
+			returnValuesByFunction := function()
+			wg.Done()
+			returnValues[index] = returnValuesByFunction
+			if returnValuesByFunction.Error() == nil {
+				finishChannel <- true
+			}
+		}(returns, index, function)
+	}
+
+	go func() {
+		wg.Wait()
+		close(completeChannel)
+	}()
+
+	select {
+	case <-completeChannel:
+		isSuccess := false
+		for _, r := range returns {
+			if r.Error() == nil {
+				isSuccess = true
+				break
+			}
+		}
+		return returns, isSuccess
+	case <-finishChannel:
+		return returns, true
 	}
 }
