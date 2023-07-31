@@ -58,6 +58,8 @@ func Test_GivenFailFunction_WhenJoinCompleteAll_ThenReturnFalse(t *testing.T) {
 	assert.False(t, isSuccess, "JoinCompleteAll must return second value equals to false")
 }
 
+// JoinCompleteOnAnySuccess Test
+
 func Test_GivenSuccessFunctions_WhenJoinCompleteOnAnySuccess_ThenReturnTrue(t *testing.T) {
 	_, isSuccess := JoinCompleteOnAnySuccess(successFunction, successFunction)
 	assert.True(t, isSuccess, "JoinCompleteOnAnySuccess must return second value equals to true")
@@ -76,4 +78,9 @@ func Test_GivenFailFunctions_WhenJoinCompleteOnAnySuccess_ThenReturnTrue(t *test
 func Test_GivenOneFailFunctionAndOneFunctionSuccessAfter200ms_WhenJoinCompleteOnAnySuccess_ThenReturnTrue(t *testing.T) {
 	_, isSuccess := JoinCompleteOnAnySuccess(errorFunction, successFunctionAfter200Ms)
 	assert.True(t, isSuccess, "JoinCompleteOnAnySuccess must return second value equals to true")
+}
+
+func TestOneReturnFailAndOneSuccess_WhenExistSuccessResult_ThenReturnTrue(t *testing.T) {
+	resturns := []Return{NewReturn(nil), NewReturn(errors.New("Error"))}
+	assert.True(t, existSuccessResult(resturns))
 }

@@ -108,15 +108,19 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 
 	select {
 	case <-completeChannel:
-		isSuccess := false
-		for _, r := range returns {
-			if r.Error() == nil {
-				isSuccess = true
-				break
-			}
-		}
-		return returns, isSuccess
+		return returns, existSuccessResult(returns)
 	case <-finishChannel:
 		return returns, true
 	}
+}
+
+func existSuccessResult(returns []Return) bool {
+	isSuccess := false
+	for _, r := range returns {
+		if r.Error() == nil {
+			isSuccess = true
+			break
+		}
+	}
+	return isSuccess
 }
