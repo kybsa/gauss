@@ -133,9 +133,6 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 		return returns, existSuccessResult(returns)
 	case <-finishChannel:
 		return returns, true
-		// Puede ser el primer argumento, se puede enviar un -1 para no aplicar el timer
-		//case <-time.After(time.Second * 1):
-		//	fmt.Println("TIMEOUT: CHANNEL 1")
 	}
 }
 
