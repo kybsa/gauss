@@ -107,3 +107,20 @@ func TestOneReturnFailAndOneSuccess_WhenExistSuccessResult_ThenReturnTrue(t *tes
 	resturns := []Return{NewReturn(nil), NewReturn(errors.New("Error"))}
 	assert.True(t, existSuccessResult(resturns))
 }
+
+// JoinFailOnErrorOrTimeout tests
+
+func Test_GivenSucessFuctionAfter200ms_WhenJoinFailOnErrorOrTimeoutWithTimeout300Ms_ThenReturnNilError(t *testing.T) {
+	_, err := JoinFailOnErrorOrTimeout(300*time.Millisecond, successFunctionAfter200Ms)
+	assert.Nil(t, err, "JoinFailOnErrorOrTimeout must return a nil error")
+}
+
+func Test_GivenSucessFuctionAfter200ms_WhenJoinFailOnErrorOrTimeoutWithTimeout100Ms_ThenReturnError(t *testing.T) {
+	_, err := JoinFailOnErrorOrTimeout(100*time.Millisecond, successFunctionAfter200Ms)
+	assert.Error(t, err, "JoinFailOnErrorOrTimeout must return an error")
+}
+
+func Test_GivenErrorFuction_WhenJoinFailOnErrorOrTimeoutWithTimeout100Ms_ThenReturnError(t *testing.T) {
+	_, err := JoinFailOnErrorOrTimeout(100*time.Millisecond, errorFunction)
+	assert.Error(t, err, "JoinFailOnErrorOrTimeout must return an error")
+}

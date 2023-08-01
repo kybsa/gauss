@@ -2,8 +2,10 @@
 package gauss
 
 import (
+	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 type Return interface {
@@ -131,6 +133,9 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 		return returns, existSuccessResult(returns)
 	case <-finishChannel:
 		return returns, true
+		// Puede ser el primer argumento, se puede enviar un -1 para no aplicar el timer
+		//case <-time.After(time.Second * 1):
+		//	fmt.Println("TIMEOUT: CHANNEL 1")
 	}
 }
 
@@ -143,4 +148,40 @@ func existSuccessResult(returns []Return) bool {
 		}
 	}
 	return isSuccess
+}
+
+// JoinFailOnErrorOrTimeout Run functions and return when complete or fail if a function fail or timeout
+func JoinFailOnErrorOrTimeout(duration time.Duration, funcs ...Function) ([]Return, error) {
+	errorChannel := make(chan error)
+	completeChannel := make(chan bool)
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	for index, function := range funcs {
+		wg.Add(1)
+		go func(returnValues []Return, index int, function Function) {
+
+			defer sendErrorToChannelOnPanic(errorChannel)
+
+			returnValuesByFunction := function()
+			wg.Done()
+			returnValues[index] = returnValuesByFunction
+			if returnValuesByFunction.Error() != nil {
+				errorChannel <- returnValuesByFunction.Error()
+			}
+		}(returns, index, function)
+	}
+
+	go func() {
+		wg.Wait()
+		close(completeChannel)
+	}()
+
+	select {
+	case <-completeChannel:
+		return returns, nil
+	case err := <-errorChannel:
+		return returns, err
+	case <-time.After(duration):
+		return returns, errors.New("timeout")
+	}
 }
