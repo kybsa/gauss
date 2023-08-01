@@ -2,6 +2,7 @@
 package gauss
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -28,6 +29,20 @@ func NewReturn(err error, returnValues ...interface{}) Return {
 
 type Function func() Return
 
+func sendErrorToChannelOnPanic(errorChannel chan error) {
+	if r := recover(); r != nil {
+		errorChannel <- fmt.Errorf("%v", r)
+	}
+}
+
+func writeResultOnPanic(result []Return, index int, wg *sync.WaitGroup) {
+	if r := recover(); r != nil {
+		result[index] = NewReturn(fmt.Errorf("%v", r))
+		wg.Done()
+	}
+}
+
+// JoinFailOnAnyError Run functions and return when any function fail
 func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	errorChannel := make(chan error)
 	completeChannel := make(chan bool)
@@ -36,6 +51,9 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	for index, function := range funcs {
 		wg.Add(1)
 		go func(returnValues []Return, index int, function Function) {
+
+			defer sendErrorToChannelOnPanic(errorChannel)
+
 			returnValuesByFunction := function()
 			wg.Done()
 			returnValues[index] = returnValuesByFunction
@@ -65,11 +83,12 @@ func JoinCompleteAll(funcs ...Function) ([]Return, bool) {
 	returns := make([]Return, len(funcs))
 	for index, function := range funcs {
 		wg.Add(1)
-		go func(returnValues []Return, index int, function Function) {
+		go func(returnValues []Return, index int, function Function, waitGroup *sync.WaitGroup) {
+			defer writeResultOnPanic(returnValues, index, waitGroup)
 			returnValuesByFunction := function()
 			returnValues[index] = returnValuesByFunction
 			wg.Done()
-		}(returns, index, function)
+		}(returns, index, function, &wg)
 	}
 	wg.Wait()
 	isSuccess := true
@@ -91,14 +110,15 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 	returns := make([]Return, len(funcs))
 	for index, function := range funcs {
 		wg.Add(1)
-		go func(returnValues []Return, index int, function Function) {
+		go func(returnValues []Return, index int, function Function, waitGroup *sync.WaitGroup) {
+			defer writeResultOnPanic(returnValues, index, waitGroup)
 			returnValuesByFunction := function()
 			wg.Done()
 			returnValues[index] = returnValuesByFunction
 			if returnValuesByFunction.Error() == nil {
 				finishChannel <- true
 			}
-		}(returns, index, function)
+		}(returns, index, function, &wg)
 	}
 
 	go func() {
