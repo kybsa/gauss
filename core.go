@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+var (
+	ErrTimeout = errors.New("timeout")
+)
+
 type Return interface {
 	Error() error
 	ReturnValues() []interface{}
@@ -53,9 +57,7 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	for index, function := range funcs {
 		wg.Add(1)
 		go func(returnValues []Return, index int, function Function) {
-
 			defer sendErrorToChannelOnPanic(errorChannel)
-
 			returnValuesByFunction := function()
 			wg.Done()
 			returnValues[index] = returnValuesByFunction
@@ -65,10 +67,7 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 		}(returns, index, function)
 	}
 
-	go func() {
-		wg.Wait()
-		close(completeChannel)
-	}()
+	go waitAndCloseChannel(&wg, completeChannel)
 
 	select {
 	case <-completeChannel:
@@ -123,10 +122,7 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 		}(returns, index, function, &wg)
 	}
 
-	go func() {
-		wg.Wait()
-		close(completeChannel)
-	}()
+	go waitAndCloseChannel(&wg, completeChannel)
 
 	select {
 	case <-completeChannel:
@@ -156,9 +152,7 @@ func JoinFailOnErrorOrTimeout(duration time.Duration, funcs ...Function) ([]Retu
 	for index, function := range funcs {
 		wg.Add(1)
 		go func(returnValues []Return, index int, function Function) {
-
 			defer sendErrorToChannelOnPanic(errorChannel)
-
 			returnValuesByFunction := function()
 			wg.Done()
 			returnValues[index] = returnValuesByFunction
@@ -168,10 +162,7 @@ func JoinFailOnErrorOrTimeout(duration time.Duration, funcs ...Function) ([]Retu
 		}(returns, index, function)
 	}
 
-	go func() {
-		wg.Wait()
-		close(completeChannel)
-	}()
+	go waitAndCloseChannel(&wg, completeChannel)
 
 	select {
 	case <-completeChannel:
@@ -179,6 +170,11 @@ func JoinFailOnErrorOrTimeout(duration time.Duration, funcs ...Function) ([]Retu
 	case err := <-errorChannel:
 		return returns, err
 	case <-time.After(duration):
-		return returns, errors.New("timeout")
+		return returns, ErrTimeout
 	}
+}
+
+func waitAndCloseChannel(wg *sync.WaitGroup, completeChannel chan bool) {
+	wg.Wait()
+	close(completeChannel)
 }
