@@ -69,6 +69,10 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 
 	go waitAndCloseChannel(&wg, completeChannel)
 
+	return selectWithCompleteErrorChannel(returns, completeChannel, errorChannel)
+}
+
+func selectWithCompleteErrorChannel(returns []Return, completeChannel chan bool, errorChannel chan error) ([]Return, error) {
 	select {
 	case <-completeChannel:
 		return returns, nil
@@ -124,6 +128,10 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 
 	go waitAndCloseChannel(&wg, completeChannel)
 
+	return selectWithCompleteFinishChannel(returns, completeChannel, finishChannel)
+}
+
+func selectWithCompleteFinishChannel(returns []Return, completeChannel chan bool, finishChannel chan bool) ([]Return, bool) {
 	select {
 	case <-completeChannel:
 		return returns, existSuccessResult(returns)
