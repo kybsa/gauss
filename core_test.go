@@ -59,6 +59,40 @@ func Test_GivenFunctionDoPanic_WhenJoinFailOnAnyError_ThenReturnError(t *testing
 	assert.Error(t, err)
 }
 
+// JoinFailOnAnyErrorCompleteFailFunction
+
+func Test_GivenSucessFuctions_WhenJoinFailOnAnyErrorCompleteFailFunction_ThenCallCompleteFunction(t *testing.T) {
+	JoinFailOnAnyErrorCompleteFailFunction(func(returnValues []Return) {
+		assert.Equal(t, returnValues[0].ReturnValues()[0], successValue, "JoinFailOnAnyErrorCompleteFailFunction must return expected value")
+	}, func(returns []Return, err error) {
+		assert.False(t, true, "JoinFailOnAnyErrorCompleteFailFunction must no call failFunction")
+	}, successFunction, successFunction)
+}
+
+func Test_GivenOneFunctonFail_WhenJJoinFailOnAnyErrorCompleteFailFunction_ThenCallFailFunction(t *testing.T) {
+	JoinFailOnAnyErrorCompleteFailFunction(func(returnValues []Return) {
+		assert.False(t, true, "JoinFailOnAnyErrorCompleteFailFunction must no call completeFunction")
+	}, func(returns []Return, err error) {
+		assert.EqualError(t, err, errNormal.Error(), "JoinFailOnAnyError must return expected error")
+	}, successFunction, errorFunction)
+}
+
+func Test_GivenOneFunctionFailFirst_WhenJoinFailOnAnyErrorCompleteFailFunction_ThenCallFailFunction(t *testing.T) {
+	JoinFailOnAnyErrorCompleteFailFunction(func(returnValues []Return) {
+		assert.False(t, true, "JoinFailOnAnyErrorCompleteFailFunction must no call completeFunction")
+	}, func(returns []Return, err error) {
+		assert.EqualError(t, err, errNormal.Error(), "JoinFailOnAnyErrorCompleteFailFunction must call FailFunction with expected error")
+	}, errorFunction, errorFunctionAfter200Ms)
+}
+
+func Test_GivenFunctionDoPanic_WhenJoinFailOnAnyErrorCompleteFailFunction_ThenCallFailFunction(t *testing.T) {
+	JoinFailOnAnyErrorCompleteFailFunction(func(returnValues []Return) {
+		assert.False(t, true, "JoinFailOnAnyErrorCompleteFailFunction must no call completeFunction")
+	}, func(returns []Return, err error) {
+		assert.Error(t, err, "JoinFailOnAnyErrorCompleteFailFunction must call failFunction with expected error value")
+	}, panicFunction)
+}
+
 // JoinCompleteAll Tests
 
 func Test_GivenSuccessFunctions_WhenJoinCompleteAll_ThenReturnTrue(t *testing.T) {

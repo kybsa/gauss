@@ -34,6 +34,8 @@ func NewReturn(err error, returnValues ...interface{}) Return {
 }
 
 type Function func() Return
+type SuccessFunction func(returns []Return)
+type FailFunction func(returns []Return, err error)
 
 func sendErrorToChannelOnPanic(errorChannel chan error) {
 	if r := recover(); r != nil {
@@ -54,6 +56,32 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	completeChannel := make(chan bool)
 	var wg sync.WaitGroup
 	returns := make([]Return, len(funcs))
+	runFunctionFailOnAnyError(returns, errorChannel, &wg, funcs)
+
+	go waitAndCloseChannel(&wg, completeChannel)
+
+	return selectWithCompleteErrorChannel(returns, completeChannel, errorChannel)
+}
+
+// JoinFailOnAnyErrorCompleteFailFunction Run functions and execute completeFunction if success or call failFunction if any function fail
+func JoinFailOnAnyErrorCompleteFailFunction(completeFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
+	errorChannel := make(chan error)
+	completeChannel := make(chan bool)
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	runFunctionFailOnAnyError(returns, errorChannel, &wg, funcs)
+
+	go waitAndCloseChannel(&wg, completeChannel)
+
+	select {
+	case <-completeChannel:
+		completeFunction(returns)
+	case err := <-errorChannel:
+		failFunction(returns, err)
+	}
+}
+
+func runFunctionFailOnAnyError(returns []Return, errorChannel chan error, wg *sync.WaitGroup, funcs []Function) {
 	for index, function := range funcs {
 		wg.Add(1)
 		go func(returnValues []Return, index int, function Function) {
@@ -66,10 +94,6 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 			wg.Done()
 		}(returns, index, function)
 	}
-
-	go waitAndCloseChannel(&wg, completeChannel)
-
-	return selectWithCompleteErrorChannel(returns, completeChannel, errorChannel)
 }
 
 func selectWithCompleteErrorChannel(returns []Return, completeChannel chan bool, errorChannel chan error) ([]Return, error) {
