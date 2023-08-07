@@ -63,8 +63,8 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	return selectWithCompleteErrorChannel(returns, completeChannel, errorChannel)
 }
 
-// JoinFailOnAnyErrorCompleteFailFunction Run functions and execute successFunction if success or call failFunction if any function fail
-func JoinFailOnAnyErrorCompleteFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
+// JoinFailOnAnyErrorSuccessFailFunction Run functions and execute successFunction if success or call failFunction if any function fail
+func JoinFailOnAnyErrorSuccessFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
 	errorChannel := make(chan error)
 	completeChannel := make(chan bool)
 	var wg sync.WaitGroup
@@ -130,9 +130,9 @@ func JoinCompleteAll(funcs ...Function) ([]Return, bool) {
 	return returns, isSuccess
 }
 
-// JoinCompleteAllCompleteFailFunction Run functions and call complete functions if success or
+// JoinCompleteAllSuccessFailFunction Run functions and call complete functions if success or
 // call failFunction if any fail
-func JoinCompleteAllCompleteFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
+func JoinCompleteAllSuccessFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
 	var wg sync.WaitGroup
 	returns := make([]Return, len(funcs))
 	for index, function := range funcs {
