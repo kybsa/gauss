@@ -110,6 +110,32 @@ func Test_GivenFunctionDoPanic_WhenJoinCompleteAll_ThenReturnError(t *testing.T)
 	assert.False(t, isSuccess)
 }
 
+// JoinCompleteAllCompleteFailFunction Tests
+
+func Test_GivenSuccessFunctions_WhenJoinCompleteAllCompleteFailFunction_ThenCallSuccessFunction(t *testing.T) {
+	JoinCompleteAllCompleteFailFunction(func(returnValues []Return) {
+		assert.True(t, true, "JoinCompleteAllCompleteFailFunction must call sucess function")
+	}, func(returns []Return, err error) {
+		assert.True(t, false, "JoinCompleteAllCompleteFailFunction must no call failFunction")
+	}, successFunction, successFunction)
+}
+
+func Test_GivenFailFunction_WhenJoinCompleteAllCompleteFailFunction_ThenCallFailFunction(t *testing.T) {
+	JoinCompleteAllCompleteFailFunction(func(returnValues []Return) {
+		assert.True(t, false, "JoinCompleteAllCompleteFailFunction must no call sucessFunction")
+	}, func(returns []Return, err error) {
+		assert.True(t, true, "JoinCompleteAllCompleteFailFunction must call failFunction")
+	}, successFunction, errorFunction)
+}
+
+func Test_GivenFunctionDoPanic_WhenJoinCompleteAllCompleteFailFunction_ThenCallFailFunction(t *testing.T) {
+	JoinCompleteAllCompleteFailFunction(func(returnValues []Return) {
+		assert.False(t, true, "JoinCompleteAllCompleteFailFunction must no call completeFunction")
+	}, func(returns []Return, err error) {
+		assert.Error(t, err, "JoinCompleteAllCompleteFailFunction must call failFunction with error")
+	}, panicFunction)
+}
+
 // JoinCompleteOnAnySuccess Tests
 
 func Test_GivenSuccessFunctions_WhenJoinCompleteOnAnySuccess_ThenReturnTrue(t *testing.T) {

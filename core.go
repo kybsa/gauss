@@ -63,8 +63,8 @@ func JoinFailOnAnyError(funcs ...Function) ([]Return, error) {
 	return selectWithCompleteErrorChannel(returns, completeChannel, errorChannel)
 }
 
-// JoinFailOnAnyErrorCompleteFailFunction Run functions and execute completeFunction if success or call failFunction if any function fail
-func JoinFailOnAnyErrorCompleteFailFunction(completeFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
+// JoinFailOnAnyErrorCompleteFailFunction Run functions and execute successFunction if success or call failFunction if any function fail
+func JoinFailOnAnyErrorCompleteFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
 	errorChannel := make(chan error)
 	completeChannel := make(chan bool)
 	var wg sync.WaitGroup
@@ -75,7 +75,7 @@ func JoinFailOnAnyErrorCompleteFailFunction(completeFunction SuccessFunction, fa
 
 	select {
 	case <-completeChannel:
-		completeFunction(returns)
+		successFunction(returns)
 	case err := <-errorChannel:
 		failFunction(returns, err)
 	}
@@ -128,6 +128,38 @@ func JoinCompleteAll(funcs ...Function) ([]Return, bool) {
 		}
 	}
 	return returns, isSuccess
+}
+
+// JoinCompleteAllCompleteFailFunction Run functions and call complete functions if success or
+// call failFunction if any fail
+func JoinCompleteAllCompleteFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	for index, function := range funcs {
+		wg.Add(1)
+		go func(returnValues []Return, index int, function Function, waitGroup *sync.WaitGroup) {
+			defer writeResultOnPanic(returnValues, index, waitGroup)
+			returnValuesByFunction := function()
+			returnValues[index] = returnValuesByFunction
+			wg.Done()
+		}(returns, index, function, &wg)
+	}
+	wg.Wait()
+	isSuccess := true
+	var err error = nil
+	for _, result := range returns {
+		if result.Error() != nil {
+			isSuccess = false
+			err = result.Error()
+			break
+		}
+	}
+
+	if isSuccess {
+		successFunction(returns)
+	} else {
+		failFunction(returns, err)
+	}
 }
 
 // JoinCompleteOnAnySuccess run function and return when any success, if all function return error
