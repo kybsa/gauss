@@ -163,6 +163,96 @@ func Test_GivenFunctionDoPanic_WhenJoinCompleteOnAnySuccess_ThenReturnError(t *t
 	assert.False(t, isSuccess)
 }
 
+// JoinCompleteOnAnySuccessSuccessFailFunction Tests
+
+func Test_GivenSuccessFunctions_WhenJoinCompleteOnAnySuccessSuccessFailFunction_ThenReturnTrue(t *testing.T) {
+	JoinCompleteOnAnySuccessSuccessFailFunction(func(returnValues []Return) {
+		assert.True(t, true, "JoinCompleteOnAnySuccessSuccessFailFunction must call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, false, "JoinCompleteOnAnySuccessSuccessFailFunction must no call fail function")
+	}, successFunction, successFunction)
+}
+
+func Test_GivenOneSuccessFunctionAndFailFunction_WhenJoinCompleteOnAnySuccessSuccessFailFunction_ThenReturnTrue(t *testing.T) {
+	JoinCompleteOnAnySuccessSuccessFailFunction(func(returnValues []Return) {
+		assert.True(t, true, "JoinCompleteOnAnySuccessSuccessFailFunction must call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, false, "JoinCompleteOnAnySuccessSuccessFailFunction must no call fail function")
+	}, successFunction, errorFunction)
+}
+
+func Test_GivenFailFunctions_WhenJoinCompleteOnAnySuccessSuccessFailFunction_ThenReturnTrue(t *testing.T) {
+	JoinCompleteOnAnySuccessSuccessFailFunction(func(returnValues []Return) {
+		assert.True(t, false, "JoinCompleteOnAnySuccessSuccessFailFunction must no call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, true, "JoinCompleteOnAnySuccessSuccessFailFunction must no call fail function")
+	}, errorFunction, errorFunction)
+}
+
+func Test_GivenOneFailFunctionAndOneFunctionSuccessAfter200ms_WhenJoinCompleteOnAnySuccessSuccessFailFunction_ThenReturnTrue(t *testing.T) {
+	JoinCompleteOnAnySuccessSuccessFailFunction(func(returnValues []Return) {
+		assert.True(t, true, "JoinCompleteOnAnySuccessSuccessFailFunction must call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, false, "JoinCompleteOnAnySuccessSuccessFailFunction must no call fail function")
+	}, errorFunction, successFunctionAfter200Ms)
+}
+
+func Test_GivenFunctionDoPanic_WhenJoinCompleteOnAnySuccessSuccessFailFunction_ThenReturnError(t *testing.T) {
+	JoinCompleteOnAnySuccessSuccessFailFunction(func(returnValues []Return) {
+		assert.True(t, false, "JoinCompleteOnAnySuccessSuccessFailFunction must no call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, true, "JoinCompleteOnAnySuccessSuccessFailFunction must call fail function")
+	}, panicFunction)
+}
+
+// getFirstError tests
+
+func Test_GivenArrayReturnWithoutErrors_WhenGetFirstError_ThenReturnNil(t *testing.T) {
+	returns := []Return{NewReturn(nil)}
+	err := getFirstError(returns)
+	assert.Nil(t, err, "getFirstError must return a nil error")
+}
+
+func Test_GivenArrayReturnWithErrors_WhenGetFirstError_ThenReturnError(t *testing.T) {
+	returns := []Return{NewReturn(errors.New("error"))}
+	err := getFirstError(returns)
+	assert.Error(t, err, "getFirstError must return an error")
+}
+
+// selectWithCompleteFinishChannelCallSuccessFailFunction tests
+
+func Test_GivenCloseCompleteChannelAndNoErrors_WhenSelectWithCompleteFinishChannelCallSuccessFailFunction_ThenCallSucessFunction(t *testing.T) {
+	// Given
+	returns := []Return{NewReturn(nil)}
+	completeChannel := make(chan bool)
+	close(completeChannel)
+	finishChannel := make(chan bool)
+	// When
+	selectWithCompleteFinishChannelCallSuccessFailFunction(func(returns []Return) {
+		// Then
+		assert.True(t, true, "selectWithCompleteFinishChannelCallSuccessFailFunction must call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, false, "selectWithCompleteFinishChannelCallSuccessFailFunction must no call fail function")
+	}, returns, completeChannel, finishChannel)
+}
+
+func Test_GivenCloseCompleteChannelAndErrors_WhenSelectWithCompleteFinishChannelCallSuccessFailFunction_ThenCallFailFunction(t *testing.T) {
+	// Given
+	returns := []Return{NewReturn(errors.New("error"))}
+	completeChannel := make(chan bool)
+	close(completeChannel)
+	finishChannel := make(chan bool)
+	// When
+	selectWithCompleteFinishChannelCallSuccessFailFunction(func(returns []Return) {
+		assert.True(t, false, "selectWithCompleteFinishChannelCallSuccessFailFunction must no call success function")
+	}, func(returns []Return, err error) {
+		// Then
+		assert.True(t, true, "selectWithCompleteFinishChannelCallSuccessFailFunction must call fail function")
+	}, returns, completeChannel, finishChannel)
+}
+
+// existSuccessResult tests
+
 func TestOneReturnFailAndOneSuccess_WhenExistSuccessResult_ThenReturnTrue(t *testing.T) {
 	resturns := []Return{NewReturn(nil), NewReturn(errors.New("Error"))}
 	assert.True(t, existSuccessResult(resturns))

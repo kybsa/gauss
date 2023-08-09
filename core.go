@@ -187,6 +187,42 @@ func JoinCompleteOnAnySuccess(funcs ...Function) ([]Return, bool) {
 	return selectWithCompleteFinishChannel(returns, completeChannel, finishChannel)
 }
 
+func JoinCompleteOnAnySuccessSuccessFailFunction(successFunction SuccessFunction, failFunction FailFunction, funcs ...Function) {
+	finishChannel := make(chan bool)
+	completeChannel := make(chan bool)
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	for index, function := range funcs {
+		wg.Add(1)
+		go func(returnValues []Return, index int, function Function, waitGroup *sync.WaitGroup) {
+			defer writeResultOnPanic(returnValues, index, waitGroup)
+			returnValuesByFunction := function()
+			returnValues[index] = returnValuesByFunction
+			if returnValuesByFunction.Error() == nil {
+				finishChannel <- true
+			}
+			wg.Done()
+		}(returns, index, function, &wg)
+	}
+
+	go waitAndCloseChannel(&wg, completeChannel)
+
+	selectWithCompleteFinishChannelCallSuccessFailFunction(successFunction, failFunction, returns, completeChannel, finishChannel)
+}
+
+func selectWithCompleteFinishChannelCallSuccessFailFunction(successFunction SuccessFunction, failFunction FailFunction, returns []Return, completeChannel chan bool, finishChannel chan bool) {
+	select {
+	case <-completeChannel:
+		if existSuccessResult(returns) {
+			successFunction(returns)
+		} else {
+			failFunction(returns, getFirstError(returns))
+		}
+	case <-finishChannel:
+		successFunction(returns)
+	}
+}
+
 func selectWithCompleteFinishChannel(returns []Return, completeChannel chan bool, finishChannel chan bool) ([]Return, bool) {
 	select {
 	case <-completeChannel:
@@ -205,6 +241,15 @@ func existSuccessResult(returns []Return) bool {
 		}
 	}
 	return isSuccess
+}
+
+func getFirstError(returns []Return) error {
+	for _, r := range returns {
+		if r.Error() != nil {
+			return r.Error()
+		}
+	}
+	return nil
 }
 
 // JoinFailOnErrorOrTimeout Run functions and return when complete or fail if a function fail or timeout
