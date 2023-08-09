@@ -276,6 +276,40 @@ func JoinFailOnErrorOrTimeout(duration time.Duration, funcs ...Function) ([]Retu
 	return selectWithCompleteErrorChannelAndTimer(returns, completeChannel, errorChannel, duration)
 }
 
+func JoinFailOnErrorOrTimeoutSuccessFailFunction(successFunction SuccessFunction, failFunction FailFunction, duration time.Duration, funcs ...Function) {
+	errorChannel := make(chan error)
+	completeChannel := make(chan bool)
+	var wg sync.WaitGroup
+	returns := make([]Return, len(funcs))
+	for index, function := range funcs {
+		wg.Add(1)
+		go func(returnValues []Return, index int, function Function) {
+			defer sendErrorToChannelOnPanic(errorChannel)
+			returnValuesByFunction := function()
+			returnValues[index] = returnValuesByFunction
+			if returnValuesByFunction.Error() != nil {
+				errorChannel <- returnValuesByFunction.Error()
+			}
+			wg.Done()
+		}(returns, index, function)
+	}
+
+	go waitAndCloseChannel(&wg, completeChannel)
+
+	selectWithCompleteErrorChannelAndTimerSuccessFailFunction(successFunction, failFunction, returns, completeChannel, errorChannel, duration)
+}
+
+func selectWithCompleteErrorChannelAndTimerSuccessFailFunction(successFunction SuccessFunction, failFunction FailFunction, returns []Return, completeChannel chan bool, errorChannel chan error, duration time.Duration) {
+	select {
+	case <-completeChannel:
+		successFunction(returns)
+	case err := <-errorChannel:
+		failFunction(returns, err)
+	case <-time.After(duration):
+		failFunction(returns, ErrTimeout)
+	}
+}
+
 func selectWithCompleteErrorChannelAndTimer(returns []Return, completeChannel chan bool, errorChannel chan error, duration time.Duration) ([]Return, error) {
 	select {
 	case <-completeChannel:

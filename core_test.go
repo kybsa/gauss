@@ -274,3 +274,30 @@ func Test_GivenErrorFuction_WhenJoinFailOnErrorOrTimeoutWithTimeout100Ms_ThenRet
 	_, err := JoinFailOnErrorOrTimeout(100*time.Millisecond, errorFunction)
 	assert.Error(t, err, "JoinFailOnErrorOrTimeout must return an error")
 }
+
+// JoinFailOnErrorOrTimeoutSuccessFailFunction tests
+
+func Test_GivenSucessFuctionAfter200ms_WhenJoinFailOnErrorOrTimeoutSuccessFailFunctionWithTimeout300Ms_ThenReturnNilError(t *testing.T) {
+	JoinFailOnErrorOrTimeoutSuccessFailFunction(func(returns []Return) {
+		assert.True(t, true, "JoinFailOnErrorOrTimeoutSuccessFailFunction must call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, false, "JoinFailOnErrorOrTimeoutSuccessFailFunction must no call fail function")
+	},
+		300*time.Millisecond, successFunctionAfter200Ms)
+}
+
+func Test_GivenSucessFuctionAfter200ms_WhenJoinFailOnErrorOrTimeoutSuccessFailFunctionWithTimeout100Ms_ThenReturnError(t *testing.T) {
+	JoinFailOnErrorOrTimeoutSuccessFailFunction(func(returns []Return) {
+		assert.True(t, false, "JoinFailOnErrorOrTimeoutSuccessFailFunction must no call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, true, "JoinFailOnErrorOrTimeoutSuccessFailFunction must call fail function")
+	}, 100*time.Millisecond, successFunctionAfter200Ms)
+}
+
+func Test_GivenErrorFuction_WhenJoinFailOnErrorOrTimeoutSuccessFailFunctionWithTimeout100Ms_ThenReturnError(t *testing.T) {
+	JoinFailOnErrorOrTimeoutSuccessFailFunction(func(returns []Return) {
+		assert.True(t, false, "JoinFailOnErrorOrTimeoutSuccessFailFunction must no call success function")
+	}, func(returns []Return, err error) {
+		assert.True(t, true, "JoinFailOnErrorOrTimeoutSuccessFailFunction must call fail function")
+	}, 100*time.Millisecond, errorFunction)
+}
